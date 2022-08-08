@@ -1,0 +1,219 @@
+---
+title: "Multicollinearity_Detection_Regression"
+author: "Indika"
+date: "07/12/2022"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+```{r}
+#The Current Population Survey (CPS) is used to supplement census information between census years. These data consist of a random sample of 534 persons from the CPS, with information on wages and other characteristics of the workers, including sex, number of years of education, years of work experience, occupational status, region of residence and union membership. We wish to determine whether wages are related to these characteristics.
+```
+
+```{r}
+library(readxl)
+library(dplyr)
+mul <- read_excel("/Users/indikadebnath/Desktop/Stat_Project/Regression_Project/multicol.xlsx")
+#View(mul)
+
+fit <- lm(WAGE~OCCUPATION+SECTOR+UNION++EDUCATION+EXPERIENCE+AGE+SEX+MARR+RACE+SOUTH,data=mul)
+summary(fit)
+
+# as we can standard error is high 4.401 and R square is 0.2805
+```
+
+```{r}
+#checking the distribution of dependent variable wage
+plot(mul$WAGE, type='p')
+# it is scattered and not linear in nature
+```
+
+```{r}
+# to make wages as linear and improve the R sqaure and standard error we can take log of wages
+ y <-log(mul$WAGE)
+plot(y, type='p')
+
+# as we can see plot of log(wages) are more linear in nature
+```
+
+```{r}
+# we can see after taking log of dependent variable The R square is improved 0.3185 and standard error got reduced significantly 0.4398
+library(readxl)
+library(dplyr)
+mul <- read_excel("/Users/indikadebnath/Desktop/Stat_Project/Regression_Project/multicol.xlsx")
+#View(mul)
+
+fit1 <- lm(log(WAGE)~OCCUPATION+SECTOR+UNION++EDUCATION+EXPERIENCE+AGE+SEX+MARR+RACE+SOUTH,data=mul)
+summary(fit1)
+```
+
+```{r}
+# R-squared value of 0.31 is not bad for a cross sectional data of 534 observations. The F-value is highly significant implying that all the explanatory variables together significantly explain the log of wages.
+
+#However, coming to the individual regression coefficients, it is seen that as many as four variables (occupation, education, experience, age) are not statistically significant and two (marital status and south) are significant only at 10 % level of significance.
+
+#here H0:b1=b2=b3=b4=b5=b6=b7=b8=b9=b10 #independent variables are not influencing dependent variable
+
+#HA:b1!= or b2!= or b3!= or b4!= or b5!= or b6!= or b7!=or b8!= or b9!= or b10!
+#independent variables are not influencing dependent variable
+
+#we can see P value is less than 0.05 (2.2e-16) that means at least 1 of the independent variables are influencing dependent variable, we can reject our null hypothesis and be sure that the influence of independent variable on dependent variable not just happens by random chance
+
+
+
+```
+
+```{r}
+#When heteroscedasticity is present in a regression analysis, the results of the analysis become hard to trust. Specifically, heteroscedasticity increases the variance of the regression coefficient estimates, but the regression model doesn’t pick up on this.
+
+#This makes it much more likely for a regression model to declare that a term in the model is statistically significant, when in fact it is not
+
+#Further we can plot the model diagnostic checking for other problems such as normality of error term, heteroscedasticity etc.
+
+#The par() function allows to set parameters to the plot. The mfrow() parameter allows to split the screen in several panels. Subsequent charts will be drawn in panels. We have to provide a vector of length 2 to mfrow() : number of rows and number of columns.
+
+# mfcol() does the same job but draws figure by columns instead of by row.
+
+par(mfrow=c(2,2))
+plot(fit1)#no heterroskedastcty
+
+#Thus, the diagnostic plot is also look fair. 
+#So, possibly the multicollinearity problem is the reason for not getting many insignificant regression coefficients.
+
+
+```
+```{r}
+# we can check heterroskedastcty with Breusch-Pagan test also
+library(lmtest)
+lmtest::bptest(fit1)
+#H0: Homoscedasticity is present (the residuals are distributed with equal variance)
+#HA:Heteroscedasticity is present (the residuals are not distributed with equal variance)
+
+# as the pvalue >0.05 we can't reject null hypo thesis so it concludes Heteroscedasticity is not present in the data
+```
+
+```{r}
+#here we are trying to find which of the independent variables are actually statistically significant
+
+#A non significant varibale become significant when there is heterscedasticity or multicollienartity as we are now sure there is no heterscedasticity So, possibly the multicollinearity problem is the reason for not getting many insignificant regression coefficients
+
+
+#checking multicollinearity#
+library(car) 
+vif(fit1)
+
+# we can see from the VIF result EDUCATION,EXPERIENCE,AGE have VIF>5 which indicates there is high multicollinearity between these independent variables
+```
+
+```{r}
+#we can use the corr command to create a correlation matrix to view the correlation coefficients between each of the variables in the model, which can help us identify which variables might be highly correlated with each other and could be causing the problem of multicollinearity:
+
+#further diagnosis of the problem, let us first look at the pair-wise correlation among the explanatory variables
+library(GGally)
+library(ggplot2)
+x <- mul[,2:11]
+ggpairs(x)
+
+#The correlation matrix shows that the pair-wise correlation among all the explanatory variables are not very high, except for the pair age – experience.
+
+#The high correlation between age and experience might be the root cause of multicollinearity.
+
+```
+
+```{r}
+#Again by looking at the partial correlation coefficient matrix among the variables, it is also clear that the partial correlation between experience – education, age – education and age – experience are quite high.
+
+#install.packages("corpcor")
+library(corpcor)
+cor2pcor((cov(x)))
+
+ 
+
+
+```
+
+```{r}
+#The ‘mctest’ package in R provides the Farrar-Glauber test and other relevant tests for multicollinearity.
+
+library(mctest)
+fit <- lm(log(WAGE)~OCCUPATION+SECTOR+UNION++EDUCATION+EXPERIENCE+AGE+SEX+MARR+RACE+SOUTH,data=mul)
+
+omcdiag(fit)
+
+ #The value of the standardized determinant is found to be 0.0001 which is very small. The calculated value of the Chi-square test statistic is found to be 4818.3895 and it is highly significant thereby implying the presence of multicollinearity in the model specification.
+```
+
+```{r}
+#now individual level  multicolleinearity check
+
+imcdiag(fit)
+# we can see education,experience,age multicollinearity is detected.
+
+#The VIF, TOL and Wi columns provide the diagnostic output for variance inflation factor, tolerance and Farrar-Glauber F-test respectively. 
+
+#The F-statistic for the variable ‘experience’ is quite high (5184.0939) followed by the variable ‘age’ (F -value of 4645.6650) and ‘education’ (F-value of 231.1956). The degrees of freedom is(k−1,n−k)or (10-1, 534-10)=(9,524)
+
+#For this degrees of freedom at 5% level of significance, the theoretical value of F is 1.89774. Thus, the F test shows that either the variable ‘experience’ or ‘age’ or ‘education’ will be the root cause of multicollinearity. 
+
+#Though the F -value for ‘education’ is also significant, it may happen due to inclusion of highly collinear variables such as ‘age’ and ‘experience’.
+
+#Experience has the higest 5184 VIF
+
+```
+```{r}
+#Finally, for examining the pattern of multicollinearity, it is required to conduct t-test for correlation coefficient.
+
+#In R, there are several packages for getting the partial correlation coefficients along with the t- test for checking their significance level. 
+
+#We’ll the ‘ppcor’ package to compute the partial correlation coefficients along with the t-statistic and corresponding p-values.
+ 
+ #install.packages('ppcor')
+ library(ppcor)
+ pcor(x,method = "pearson")
+ 
+#As expected the high partial correlation between ‘age’ and ‘experience’ is found to be highly statistically significant.
+
+#Similar is the case for ‘education – experience’ and ‘education – age’ . 
+
+#Not only that even some of the low correlation coefficients are also found to be highyl significant. Thus, the Farrar-Glauber test points out that Experience has the higest 5184 VIF(from imcdag test) is the root cause of all multicollinearity problem.
+
+```
+```{r}
+#remedial measures
+
+#There are several remedial measure to deal with the problem of multicollinearity such Prinicipal Component Regression, Ridge Regression, Stepwise Regression etc.
+
+#However, in the present case, we’ll go for the exclusion of the variables for which the VIF values are above 10 and as well as the concerned variable logically seems to be redundant. 
+
+#Age and experience will certainly be correlated
+
+#why to use both of them? 
+
+#If we use ‘age’ or ‘age-squared’, it will reflect the experience of the respondent also.
+
+# Experience has the higest 5184 VIF value
+
+#Thus, we try to build a model by excluding ‘experience’, estimate the model and go for further diagnosis for the presence of multicollinearity
+```
+
+```{r}
+# model after excluding  Experience
+
+fit2 <- lm(log(WAGE)~OCCUPATION+SECTOR+UNION++EDUCATION+AGE+SEX+MARR+RACE+SOUTH,data=mul)
+summary(fit2)
+
+#Now by looking at the significance level, it is seen that out of nine of regression coefficients, eight are statistically significant. The R-square value is 0.31 and F-value is also very high and significant too.
+```
+
+
+```{r}
+library(car)
+vif(fit2)
+
+
+#Even the VIF values for the explanatory variables have reduced to very lower values.
+
+#Now the model is free from Multicollinearity
+```
+
